@@ -1,57 +1,67 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
-
-import React, { createContext, useContext, useState, ReactNode } from "react";
-
-interface User {
-  email: string;
-  preferred_username: string;
-  name: string;
-  token: string;
-}
+import { usePathname, useRouter } from "next/navigation";
+import { createContext, useContext, useEffect, useState } from "react";
 
 interface AuthContextType {
-  user: User | null;
-  login: (user: User) => void;
+  accessToken: string | null;
+  login: (token: string) => void;
   logout: () => void;
+  isAuthenticated: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("user");
-      if (stored) return JSON.parse(stored);
+const protectedRoutes = ["/leaderboard", "/submit-score", "/"];
+const authPages = ["/login", "/register", "/confirm-signup"];
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    const token = localStorage.getItem("accessToken");
+    if (token) setAccessToken(token);
+  }, []);
+
+  useEffect(() => {
+    if (accessToken) {
+      if (authPages.includes(pathname)) {
+        router.replace("/leaderboard");
+      }
+    } else {
+      if (protectedRoutes.includes(pathname)) {
+        router.replace("/login");
+      }
     }
-    return null;
-  });
+  }, [accessToken, pathname, router]);
 
-  const login = (userData: any) => {
-    setUser(userData);
-    localStorage.setItem("token", JSON.stringify(userData.token.AccessToken));
+  function login(token: string) {
+    localStorage.setItem("accessToken", token);
+    setAccessToken(token);
+    router.push("/leaderboard");
+  }
+
+  function logout() {
+    localStorage.removeItem("accessToken");
+    setAccessToken(null);
+    router.push("/login");
+  }
+
+  const value = {
+    accessToken,
+    login,
+    logout,
+    isAuthenticated: !!accessToken,
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem("user");
-  };
-
-  // React.useEffect(() => {
-  //   if (user) {
-  //     setAuthToken(user.token.AccessToken);
-  //   }
-  // }, [user]);
-
-  return (
-    <AuthContext.Provider value={{ user, login, logout }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
-  return ctx;
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within AuthProvider");
+  }
+  return context;
 }

@@ -1,33 +1,36 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
-
-import { useAuth } from "@/context/AuthContext";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
-const Login = () => {
+const ConfirmSignup = () => {
   const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch("/api/auth/confirm-signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ preferred_username: username, password }),
+        body: JSON.stringify({
+          preferred_username: username,
+          confirmationCode: code,
+        }),
       });
 
       if (!res.ok) {
         const errData = await res.json();
-        throw new Error(errData?.message || "Login failed");
+        throw new Error(errData?.message || "Confirmation failed");
       }
 
-      const data = await res.json();
-      login(data.AccessToken);
+      toast.success("Account confirmed! You can now log in.");
+      router.push("/login");
     } catch (err: any) {
       toast.error(err.message);
     } finally {
@@ -37,7 +40,7 @@ const Login = () => {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-4">
-      <h1 className="mb-6 text-3xl font-semibold">Login</h1>
+      <h1 className="mb-6 text-3xl font-semibold">Confirm Account</h1>
       <form
         onSubmit={handleSubmit}
         className="w-full max-w-sm rounded bg-white p-6 shadow"
@@ -49,25 +52,29 @@ const Login = () => {
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           className="mb-4 w-full rounded border border-gray-300 p-2"
+          placeholder="Enter username"
         />
-        <label className="mb-2 block font-medium">Password</label>
+
+        <label className="mb-2 block font-medium">Confirmation Code</label>
         <input
-          type="password"
+          type="text"
           required
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
           className="mb-6 w-full rounded border border-gray-300 p-2"
+          placeholder="Enter code from email"
         />
+
         <button
           type="submit"
           disabled={loading}
           className="w-full rounded bg-blue-600 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
         >
-          {loading ? "Logging in..." : "Login"}
+          {loading ? "Confirming..." : "Confirm account"}
         </button>
       </form>
     </main>
   );
 };
 
-export default Login;
+export default ConfirmSignup;
